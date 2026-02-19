@@ -1,0 +1,163 @@
+class Servicio:
+    def __init__(self, id, nombre, costo_base, descuento, costo_final, fecha):
+        self.id, self.nombre = id, nombre
+        self.costo_base, self.descuento = costo_base, descuento
+        self.costo_final, self.fecha = costo_final, fecha
+
+class Cliente:
+    def __init__(self, nombre, id_cliente, email, direccion, telefono):
+        import time
+        self.nombre = str(nombre)
+        self.id = str(id_cliente)
+        self.email = str(email)
+        self.direccion = str(direccion)
+        self.telefono = str(telefono)
+        self.servicios = []
+        self.total_gastado = 0.0
+
+PRECIOS = {'desarrollo': 2000, 'soporte': 500, 'consulta': 200, 'auditoria': 1500}
+
+def validar_email(email):
+    return '@' in email
+
+def input_seguro(mensaje):
+    try:
+        return input(mensaje).strip()
+    except:
+        return ""
+
+def input_requerido(mensaje):
+    while True:
+        valor = input_seguro(mensaje)
+        if valor: 
+            return valor
+        print("Campo OBLIGATORIO - Intenta de nuevo")
+
+def registrar_cliente():
+    print("\n" + "="*40)
+    print("         REGISTRO DE CLIENTE")
+    print("="*40)
+    print("Ingresa los datos del cliente:\n")
+    
+    nombre = input_requerido("Nombre del cliente: ")
+    id_cliente = input_requerido("ID del cliente: ")
+    email = input_requerido("Email del cliente: ")
+    direccion = input_requerido("Dirección del cliente: ")
+    telefono = input_requerido("Teléfono del cliente: ")
+    
+    if not validar_email(email):
+        print("\nERROR: El email debe contener @")
+        print("Intentando de nuevo...\n")
+        return registrar_cliente()
+    
+    cliente = Cliente(nombre, id_cliente, email, direccion, telefono)
+    print(f"\n✓ Cliente registrado correctamente:")
+    print(f"  Nombre: {cliente.nombre}")
+    print(f"  ID: {cliente.id}")
+    print(f"  Email: {cliente.email}")
+    input("\nPresiona Enter para continuar...")
+    return cliente
+
+def gestionar_servicios(cliente):
+    print("\n" + "="*40)
+    print("           SERVICIOS")
+    print("="*40)
+    print("Opciones: desarrollo, soporte, consulta, auditoria")
+    print("Ejemplo: desarrollo, soporte\n")
+    
+    servicios_str = input_seguro("Servicios (separados por coma): ")
+    
+    if not servicios_str: 
+        print("No se agregaron servicios")
+        input("Presiona Enter para continuar...")
+        return []
+    
+    args = [s.strip().lower() for s in servicios_str.split(',')]
+    import time
+    resultado = []
+    
+    for servicio_nombre in args:
+        if servicio_nombre not in PRECIOS: 
+            print(f"Ignorando: '{servicio_nombre}' (no válido)")
+            continue
+            
+        costo_base = PRECIOS[servicio_nombre]
+        total_serv = len(cliente.servicios)
+        descuento_especial = 0.30 if total_serv % 2 == 1 else 0.0
+        descuento_dinamico = 0.10 if cliente.total_gastado >= 4000 else 0.08 if cliente.total_gastado >= 2000 else 0.05 if servicio_nombre == 'soporte' else 0.0
+        descuento = min(descuento_especial + descuento_dinamico, 0.5)
+        costo_final = round(costo_base * (1 - descuento), 2)
+        
+        servicio = Servicio(str(time.time())[-6:], servicio_nombre.title(), costo_base, round(descuento, 3), costo_final, str(time.time()))
+        cliente.servicios.append(servicio)
+        cliente.total_gastado += costo_final
+        resultado.append(servicio)
+        print(f"  ✓ {servicio.nombre}: ${servicio.costo_final} (descuento {servicio.descuento*100:.0f}%)")
+    
+    input("\nPresiona Enter para continuar...")
+    return resultado
+
+def generar_factura(cliente):
+    import time
+    factura = {
+        'cliente': {k: getattr(cliente, k) for k in ['id','nombre','email','direccion','telefono']},
+        'fecha': str(time.time()),
+        'estadisticas': {'total_servicios': len(cliente.servicios), 'total_pagar': round(cliente.total_gastado, 2)},
+        'detalle': [{'servicio': s.nombre, 'costo_base': s.costo_base, 'descuento_%': f"{s.descuento*100:.1f}%", 'costo_final': s.costo_final} for s in cliente.servicios]
+    }
+    return factura
+
+def mostrar_menu():
+    print("\n" + "="*40)
+    print("           MENÚ PRINCIPAL")
+    print("="*40)
+    print("1. Agregar servicios")
+    print("2. Generar factura")
+    print("3. Salir")
+    return input_seguro("Elige opción (1-3): ")
+
+def motor_notificaciones(callbacks, factura):
+    print("\nNotificaciones enviadas:")
+    [callback(factura) for callback in callbacks]
+
+def email_callback(factura):
+    print(f"EMAIL: {factura['cliente']['nombre']} → ${factura['estadisticas']['total_pagar']}")
+
+def sms_callback(factura):
+    print(f"SMS: Factura #{factura['cliente']['id']} → ${factura['estadisticas']['total_pagar']}")
+
+def whatsapp_callback(factura):
+    print(f"WA: Hola {factura['cliente']['nombre']}! Total: ${factura['estadisticas']['total_pagar']}")
+
+def main():
+    print("TECHSOLUTIONS - Sistema Interactivo")
+    cliente = registrar_cliente()
+    
+    while True:
+        opcion = mostrar_menu()
+        
+        if opcion == '1':
+            gestionar_servicios(cliente)
+        elif opcion == '2':
+            if cliente.servicios:
+                factura = generar_factura(cliente)
+                print("\n" + "="*50)
+                print("           FACTURA FINAL")
+                print("="*50)
+                print(str(factura))
+                motor_notificaciones([email_callback, sms_callback, whatsapp_callback], factura)
+                print("\nProceso completado ✓")
+                input("\nPresiona Enter para salir...")
+                break
+            else:
+                print("Primero agrega servicios")
+                input("Presiona Enter...")
+        elif opcion == '3':
+            print("Saliendo...")
+            break
+        else:
+            print("Opción inválida")
+            input("Presiona Enter...")
+
+if __name__ == "__main__":
+    main()
